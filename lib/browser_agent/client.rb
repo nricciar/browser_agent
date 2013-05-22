@@ -1,8 +1,3 @@
-require 'rubygems'
-require 'cookiejar'
-require 'net/http'
-require 'net/https'
-require 'open-uri'
 require File.join(File.dirname(__FILE__),'html_document')
 
 module BrowserAgent
@@ -69,52 +64,67 @@ module BrowserAgent
       fetch(uri, :method => :post, :parameters => params)
     end
 
+    def fetch_asset(uri)
+      fetch(uri, :method => :get, :asset => true)
+    end
+
     protected
     def fetch(uri, *args)
-      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => true }
+      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => true, :asset => false }
       options = default_options.merge(args.first)
 
       raise ArgumentError, 'Redirect Limit Reached!' if options[:limit] <= 0
-      if @domain.nil?
+      if @domain.nil? && uri !~ /^file/
         raise ArgumentError, 'Invalid URL' if uri !~ /^http/
       else
-        if uri !~ /^http/
-          raise ArgumentError, 'Invalid URL' if uri !~ /^\//
-          uri = File.join("#{@scheme}://",@domain,uri)
-        end
-      end
+        if uri =~ /^file/
+          @current_location = uri
+          @status = 200
+          url = URI.parse(@current_location)
+          @scheme = url.scheme
+          @response = File.read(url.path)
+          @domain = 'localhost'
+          @document = HtmlDocument.new(@response,self)
+        elsif uri =~ /^http/ || uri =~ /^\//
+          uri = File.join("#{@scheme}://",@domain,uri) if uri =~ /^\//
 
-      url = URI.parse(uri)
-      headers = {}
-      headers['User-Agent'] = USER_AGENT
-      headers['Cookie'] = @cookie_jar.get_cookie_header(uri)
-      puts "#{options[:method].to_s.upcase} #{url.request_uri} -- #{headers.inspect}" if options[:debug]
-      response = Net::HTTP.start(url.host, url.port, :use_ssl => url.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
-        case options[:method]
-        when :post
-          http.post(url.request_uri,options[:parameters],headers)
+          url = URI.parse(uri)
+          headers = {}
+          headers['User-Agent'] = USER_AGENT
+          headers['Cookie'] = @cookie_jar.get_cookie_header(uri)
+          puts "#{options[:method].to_s.upcase} #{url.request_uri} -- #{headers.inspect}" if options[:debug]
+          response = Net::HTTP.start(url.host, url.port, :use_ssl => url.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+            case options[:method]
+            when :post
+              http.post(url.request_uri,options[:parameters],headers)
+            else
+              http.get(url.request_uri,headers)
+            end
+          end
+          if options[:asset] == false
+            @current_location = response['location'] || uri
+            @cookie_jar.set_cookies_from_headers(@current_location, response.to_hash)
+            @status = response.code.to_i
+            url = URI.parse(@current_location)
+            @domain = url.host
+            @scheme = url.scheme
+            @response = response.body
+          end
+
+          case response
+          when Net::HTTPSuccess
+            return response.body if options[:asset]
+            @document = HtmlDocument.new(response.body,self)
+          when Net::HTTPRedirection
+            fetch(response['location'], options.merge(:limit => (options[:limit] - 1), :referer => uri))
+          else
+            response.error!
+          end
         else
-          http.get(url.request_uri,headers)
+          raise ArgumentError, 'Invalid URL'
         end
-      end
-      @current_location = response['location'] || uri
-      @cookie_jar.set_cookies_from_headers(@current_location, response.to_hash)
-      @status = response.code.to_i
-      url = URI.parse(@current_location)
-      @domain = url.host
-      @scheme = url.scheme
-      @response = response.body
-
-      case response
-      when Net::HTTPSuccess
-        @document = HtmlDocument.new(response.body,self)
-      when Net::HTTPRedirection
-        fetch(response['location'], :limit => (options[:limit] - 1), :referer => uri)
-      else
-        response.error!
       end
     end
-
   end
 
 end

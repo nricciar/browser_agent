@@ -1,23 +1,40 @@
 <html>
   <head>
     <title>hello world</title>
+    <script type="text/javascript" language="JavaScript">
+window.onload = function ()
+{
+  tmp = document.getElementById("container");
+  ninput = document.createElement('input');
+  ninput.setAttribute('type','text');
+  ninput.setAttribute('name','blabla');
+  ninput.value = "Foo";
+  if (tmp.appendChild) {
+    tmp.appendChild(ninput);
+  }
+}
+    </script>
   </head>
   <body>
     <form id="test" action="submit.php" method="post">
-      <input type="text" name="foo" value="bar" disabled="disabled" />
-      <input type="text" name="user[email]" value="bar test" />
-      <textarea name="bla">sucka</textarea>
-      <input type="submit" value="Submit" name="submit" />
-      <input type="checkbox" name="check1" value="1" checked="checked" />
-      <input type="checkbox" name="check2" value="1" />
-      <input type="radio" name="test" value="1" />
-      <input type="radio" name="test" value="2" checked="checked" />
-      <input type="radio" name="test" value="3" />
+      <div id="container">
+        <input type="text" name="foo" value="bar" disabled="disabled" id="foo_field" />
+        <input type="text" name="user[email]" value="bar test" onchange="document.getElementById('foo_field').value = 'it changed!';" />
+        <textarea name="bla">sucka</textarea>
+        <input type="submit" value="Submit" name="submit" />
+        <input type="checkbox" name="check1" value="1" checked="checked" />
+        <input type="checkbox" name="check2" value="1" />
+        <input type="radio" name="test" value="1" />
+        <input type="radio" name="test" value="2" checked="checked" />
+        <input type="radio" name="test" value="3" />
+      </div>
     </form>
 
     <form id="test2" method="get" action="search.php">
        <input type="text" name="query" />
        <input type="submit" name="search" value="Search" />
+       <select id="select_box">
+       </select>
     </form>
 
     <form id="test3">

@@ -6,18 +6,6 @@ module BrowserAgent
       @elem = elem
       @form = form
       @name = @elem['name']
-      case @elem.name
-      when "textarea"
-        @value = @elem.content
-      else
-        @value = @elem['value']
-      end
-      @disabled = @elem['disabled'].nil? || !["disabled","true"].include?(@elem['disabled'].to_s.downcase) ? false : true
-      if checkbox? || radio_button?
-        @checked = @elem['checked'].nil? || !["checked","true"].include?(@elem['checked'].to_s.downcase) ? false : true
-      else
-        @checked = nil
-      end
       @button_clicked = nil
     end
 
@@ -26,28 +14,36 @@ module BrowserAgent
     end
 
     def disabled?
-      @disabled
+      @elem['disabled'].nil? || !["disabled","true"].include?(@elem['disabled'].to_s.downcase) ? false : true
     end
 
     def disabled=(val)
-      @disabled = val == true ? true : false
+      if val
+        @elem['disabled'] = "disabled"
+      else
+        @elem['disabled'] = nil
+      end
     end
 
     def radio_button?
-      @elem.name == "input" && !@elem['type'].nil? && @elem['type'].downcase == "radio" ? true : false
+      @elem.nodeName == "input" && !@elem['type'].nil? && @elem['type'].downcase == "radio" ? true : false
     end
 
     def checkbox?
-      @elem.name == "input" && !@elem['type'].nil? && @elem['type'].downcase == "checkbox" ? true : false
+      @elem.nodeName == "input" && !@elem['type'].nil? && @elem['type'].downcase == "checkbox" ? true : false
     end
 
     def checked?
-      @checked
+      @elem['checked'].nil? || !["checked","true"].include?(@elem['checked'].to_s.downcase) ? false : true
     end
 
     def checked=(val)
-      @checked = val == true ? true : false
-      if radio_button? && @checked == true
+      if val
+        @elem['checked'] = "checked"
+      else
+        @elem['checked'] = nil
+      end
+      if radio_button? && checked?
         # uncheck all other radio buttons of the same name 
         # when one is selected
         @form.children.each do |child|
@@ -57,32 +53,56 @@ module BrowserAgent
     end
 
     def value
-      @value.to_s
+      case @elem.nodeName
+      when "textarea"
+        @value = @elem.content
+      else
+        @value = @elem['value']
+      end
     end
 
     def value=(val)
-      @value = val
-    end
-
-    def escaped_value
-      value.gsub(/\+/,'%2B')
+      case @elem.nodeName
+      when "textarea"
+        @elem.content = val
+      else
+        @elem['value'] = val
+      end
+      if @elem['onchange']
+        @form.document.js_eval @elem['onchange']
+      end
     end
 
     def query_string
-      if @elem.name == "input"
+      if @elem.nodeName == "input"
         return nil if ["submit","button"].include?(@elem['type']) && @button_clicked.nil?
-        URI::escape("#{@elem['name']}=#{escaped_value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
+        escape("#{@elem['name']}")+"="+escape("#{value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
       else
         nil
       end
     end
 
     def click
-      if (@elem.name == "input" && ["submit","image"].include?(@elem['type'])) || @elem.name == "button"
+      @form.document.js_eval @elem['onclick'] if @elem['onclick']
+      @form.document.js_eval @elem['onmousedown'] if @elem['onmousedown']
+      @form.document.js_eval @elem['onmouseup'] if @elem['onmouseup']
+
+      if (@elem.nodeName == "input" && ["submit","image"].include?(@elem['type'])) || @elem.nodeName == "button"
         @button_clicked = true
         @form.submit()
         @button_clicked = nil
       end
+    end
+
+    protected
+    def escape(s)
+      s.to_s.gsub(/([^ a-zA-Z0-9_.-]+)/n) {
+        '%'+$1.unpack('H2'*bytesize($1)).join('%').upcase
+      }.tr(' ', '+')
+    end
+
+    def bytesize(string)
+      string.bytesize
     end
 
   end

@@ -8,11 +8,15 @@ module BrowserAgent
       @children = []
       @data.traverse do |elem|
         if elem.instance_of?(Nokogiri::XML::Element)
-          if ["input","select","button","textarea"].include?(elem.name)
+          if ["input","select","button","textarea"].include?(elem.nodeName)
             @children << InputElement.new(elem,self)
           end
         end
       end
+    end
+
+    def document
+      @doc
     end
 
     def name
@@ -32,6 +36,9 @@ module BrowserAgent
     end
 
     def submit(name=nil)
+      if @data['onsubmit']
+        document.js_eval @data['onsubmit']
+      end
       if name.nil?
         args = { :parameters => children.map(&:query_string).compact.join("&") }
         @doc.client.send(method, action, children.map(&:query_string).compact.join("&") )
@@ -41,6 +48,16 @@ module BrowserAgent
     end
 
     def method_missing(method,*args)
+#@data.traverse do |elem|
+#puts elem.name
+#  if ["input","select","button","textarea"].include?(elem.nodeName)
+#    tmpname = elem['name'].to_s.gsub(/\[/,'_').gsub(/\]/,'')
+#    puts tmpname
+#    return InputElement.new(elem,self) if elem['name'].to_s.gsub(/\[/,'_').gsub(/\]/,'') == method.to_s
+#  end
+#end
+#      puts @data.xpath(".//*[local-name()='input' or local-name()='select' or local-name()='button' or local-name()='textarea']").inspect
+
       @children.each do |child|
         return child if child.name == method.to_s
       end

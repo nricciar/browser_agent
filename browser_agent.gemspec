@@ -21,6 +21,8 @@ spec = Gem::Specification.new do |s|
   s.description = %q{A small library to aid in testing websites}
   s.add_dependency 'cookiejar'
   s.add_dependency 'nokogiri'
+  s.add_dependency 'taka'
+  s.add_dependency 'therubyracer'
   s.add_development_dependency 'rspec'
   s.add_development_dependency 'rake'
   s.add_development_dependency 'rdoc'
