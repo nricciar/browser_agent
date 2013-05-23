@@ -32,7 +32,7 @@ module BrowserAgent
     end
 
     def method
-      (@data['method'] || 'post').to_s.downcase.to_sym
+      (@data['method'] || 'get').to_s.downcase.to_sym
     end
 
     def submit(name=nil)
@@ -41,7 +41,7 @@ module BrowserAgent
       end
       if name.nil?
         args = { :parameters => children.map(&:query_string).compact.join("&") }
-        @doc.client.send(method, action, children.map(&:query_string).compact.join("&") )
+        @doc.client.send(method, action, args )
       else
         children.each { |child| child.click() if child.name == name }
       end
