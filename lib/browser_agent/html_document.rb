@@ -42,6 +42,7 @@ module BrowserAgent
     end
 
     def js_eval(js,src=nil)
+      return unless @client.options[:javascript]
       begin
         cxt.eval( js )
       rescue Exception => e

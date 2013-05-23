@@ -46,7 +46,8 @@ module BrowserAgent
     end
 
     def path
-      @current_location.split("//").last.gsub(/^([^\/]+)/,"")
+      ret = @current_location.split("//").last.gsub(/^([^\/]+)/,"")
+      ret.nil? || ret.empty? ? "/" : ret
     end
 
     def document
@@ -68,8 +69,9 @@ module BrowserAgent
 	options.nil? || options.first.nil? ? {} : options.first))
     end
 
-    def post(uri, params)
-      fetch(uri, :method => :post, :parameters => params)
+    def post(uri, *options)
+      fetch(uri, { :method => :post }.merge(
+	options.nil? || options.first.nil? ? {} : options.first))
     end
 
     # used to include document assets like javascript files
@@ -79,8 +81,8 @@ module BrowserAgent
 
     protected
     def fetch(uri, *args)
-      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => true, 
-	:asset => false, :javascript => true }
+      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => false, 
+	:asset => false, :javascript => false }
       @options = default_options.merge(args.first)
 
       # protect from infinite loops
@@ -113,6 +115,9 @@ module BrowserAgent
         # with your uri
         else
           raise ArgumentError, "Invalid URL '#{url}'"
+        end
+        if options[:parameters] && options[:method] == :get
+          uri += (uri =~ /\?/ ? '&' : '?') + options[:parameters]
         end
 
         url = URI.parse(uri)
