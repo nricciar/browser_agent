@@ -1,0 +1,16 @@
+this library is experimental and not complete.  Use at your own risk.
+
+example:
+
+  require 'browser_agent'
+
+  client = BrowserAgent::Client.new
+  client.get("http://www.google.com")
+  puts client.path # => "/"
+  form = client.form.first
+  form.q.value = "linux"
+  form.submit()
+  puts client.path # => "/search?hl=en&source=hp&q=linux&gbv=1"
+  client.document.select("h3.r").each do |title|
+    puts title.content
+  end

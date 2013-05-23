@@ -25,7 +25,12 @@ describe HtmlDocument do
     @parser.form("test").foo.value.should == 'test'
   end
 
-  it 'first form should have 4 form elements' do
+  it 'first form should have 9 form elements' do
+    @parser.form.first.children.size.should == 9
+  end
+
+  it 'first form should have 10 elements with javascript enabled' do
+    @parser.get("file://" + File.expand_path(File.join(File.dirname(__FILE__),'example_document.html')), :javascript => true)
     @parser.form.first.children.size.should == 10
   end
 
