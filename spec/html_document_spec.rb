@@ -1,7 +1,6 @@
 lib = File.expand_path('../lib/', __FILE__)
 $:.unshift lib unless $:.include?(lib)
 require 'browser_agent'
-require File.join(File.dirname(__FILE__),'dummy_client')
 include BrowserAgent
 
 describe HtmlDocument do

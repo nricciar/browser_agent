@@ -14,11 +14,12 @@ require File.join(File.dirname(__FILE__),'browser_agent/client')
 # Monkey patch all elements to include a 'style' attribute
 #
 class Nokogiri::XML::Element
-    attr_reader :style
-
-    class Style < OpenStruct
-      def color=(val)
-      end
+    def style
+      ""
+    end
+    def style=(val)
+#puts "wtf wtf"
+#self.style = val
     end
 
     def attachEvent(event, func)
@@ -26,7 +27,6 @@ class Nokogiri::XML::Element
 
     def initialize( *args )
         super
-        @style = Style.new
     end
 end
 

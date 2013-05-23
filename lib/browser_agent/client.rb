@@ -14,6 +14,11 @@ module BrowserAgent
       @document = nil
       @scheme = 'http'
       @response = nil
+      @options = {}
+    end
+
+    def options
+      @options
     end
 
     def status
@@ -48,80 +53,107 @@ module BrowserAgent
       @document
     end
 
+    # the actual document as returned by the server
     def response
       @response
     end
 
+    # request all or a specific form from the document
     def form(name=nil)
       @document.form(name)
     end
 
-    def get(uri)
-      fetch(uri, :method => :get)
+    def get(uri, *options)
+      fetch(uri, { :method => :get }.merge(
+	options.nil? || options.first.nil? ? {} : options.first))
     end
 
     def post(uri, params)
       fetch(uri, :method => :post, :parameters => params)
     end
 
+    # used to include document assets like javascript files
     def fetch_asset(uri)
       fetch(uri, :method => :get, :asset => true)
     end
 
     protected
     def fetch(uri, *args)
-      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => true, :asset => false }
-      options = default_options.merge(args.first)
+      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => true, 
+	:asset => false, :javascript => true }
+      @options = default_options.merge(args.first)
 
+      # protect from infinite loops
       raise ArgumentError, 'Redirect Limit Reached!' if options[:limit] <= 0
-      if @domain.nil? && uri !~ /^file/
-        raise ArgumentError, 'Invalid URL' if uri !~ /^http/
+
+      if uri =~ /^file/
+        # request a html page from the local filesystem
+        @current_location = uri
+        @status = 200
+        url = URI.parse(@current_location)
+        @scheme = url.scheme
+        @response = File.read(url.path)
+        @domain = 'localhost'
+        @document = HtmlDocument.new(@response,self)
       else
-        if uri =~ /^file/
-          @current_location = uri
-          @status = 200
-          url = URI.parse(@current_location)
-          @scheme = url.scheme
-          @response = File.read(url.path)
-          @domain = 'localhost'
-          @document = HtmlDocument.new(@response,self)
-        elsif uri =~ /^http/ || uri =~ /^\//
-          uri = File.join("#{@scheme}://",@domain,uri) if uri =~ /^\//
-
-          url = URI.parse(uri)
-          headers = {}
-          headers['User-Agent'] = USER_AGENT
-          headers['Cookie'] = @cookie_jar.get_cookie_header(uri)
-          puts "#{options[:method].to_s.upcase} #{url.request_uri} -- #{headers.inspect}" if options[:debug]
-          response = Net::HTTP.start(url.host, url.port, :use_ssl => url.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
-            case options[:method]
-            when :post
-              http.post(url.request_uri,options[:parameters],headers)
-            else
-              http.get(url.request_uri,headers)
-            end
-          end
-          if options[:asset] == false
-            @current_location = response['location'] || uri
-            @cookie_jar.set_cookies_from_headers(@current_location, response.to_hash)
-            @status = response.code.to_i
-            url = URI.parse(@current_location)
-            @domain = url.host
-            @scheme = url.scheme
-            @response = response.body
-          end
-
-          case response
-          when Net::HTTPSuccess
-            return response.body if options[:asset]
-            @document = HtmlDocument.new(response.body,self)
-          when Net::HTTPRedirection
-            fetch(response['location'], options.merge(:limit => (options[:limit] - 1), :referer => uri))
-          else
-            response.error!
-          end
+        # format //domain/path/file
+        if uri =~ /^\/\/([^\/]+)\/(.*)$/
+          uri = File.join("#{@scheme == 'https' ? 'https' : 'http'}://",$1,$2)
+        # format /path/file with a predefined domain
+        elsif uri =~ /^\// && !@domain.nil?
+          uri = File.join("#{@scheme}://",@domain,uri)
+        # format scheme://domain/path/file
+        elsif uri =~ /^([a-z]+):\/\//
+          raise ArgumentError, "Invalid Scheme '#{$1}'" unless ["http","https"].include?($1)
+        # format file relative urls for internal links
+        elsif !@current_location.nil? && !@domain.nil? && options[:asset]
+          last_path = URI.parse(@current_location).path
+          uri = File.join("#{@scheme}://",@domain,File.dirname(last_path))
+        # if you make it here we do not know what to do
+        # with your uri
         else
-          raise ArgumentError, 'Invalid URL'
+          raise ArgumentError, "Invalid URL '#{url}'"
+        end
+
+        url = URI.parse(uri)
+
+        # setup headers and cookies to impersonate a standard browser
+        headers = {}
+        headers['User-Agent'] = USER_AGENT
+        headers['Cookie'] = @cookie_jar.get_cookie_header(uri)
+
+        # make the server request
+        response = Net::HTTP.start(url.host, url.port, :use_ssl => url.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
+          puts "#{options[:method].to_s.upcase} #{url.request_uri} -- #{headers.inspect}" if options[:debug]
+          case options[:method]
+          when :post
+            http.post(url.request_uri,options[:parameters],headers)
+          else
+            http.get(url.request_uri,headers)
+          end
+        end
+
+        # when making requests for included scripts and other assets do not change
+        # the current location, etc...
+        if options[:asset] == false
+          @current_location = response['location'] || uri
+          @cookie_jar.set_cookies_from_headers(@current_location, response.to_hash)
+          @status = response.code.to_i
+          url = URI.parse(@current_location)
+          @domain = url.host
+          @scheme = url.scheme
+          @response = response.body
+        end
+
+        # follow any redirects and then create our html document
+        case response
+        when Net::HTTPSuccess
+          return response.body if options[:asset]
+          @document = HtmlDocument.new(response.body,self)
+        when Net::HTTPRedirection
+          fetch(response['location'], options.merge(:limit => (options[:limit] - 1), :referer => uri))
+        else
+          response.error!
         end
       end
     end

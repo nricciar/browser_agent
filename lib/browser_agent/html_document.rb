@@ -12,45 +12,51 @@ module BrowserAgent
       @window = Window.new( @html )
       @window.document.location = Window::Location.new(@client.location.to_s)
 
-      @cxt = V8::Context.new( :with => @window )
-      @window.document.xpath( './/script' ).each do |script|
-        if src = script['src']
-          src = script['src'].to_s
-          code = @client.fetch_asset(src)
-#          code = IO.read( open( src ) )
-        else
-          code = script.text
-          src = 'EMBEDED'
+      if @client.options[:javascript]
+        @window.document.xpath( './/script' ).each do |script|
+          if src = script['src']
+            src = script['src'].to_s
+            code = @client.fetch_asset(src)
+          else
+            code = script.text
+            src = :embeded
+          end
+          js_eval( code, src )
         end
 
-        begin
-          @cxt.eval( code )
-        rescue Exception => e
-          puts src
-          code.split( "\n" ).each_with_index {
-              |line, i|
-              puts "#{i+1} #{line}"
-          }
-          raise e
+        body = @window.document.getElementsByTagName('body')
+
+        # call onload events
+        unless body.nil? || body.empty? || body[0]['onload'].nil?
+          js_eval @window.document.getElementsByTagName('body')[0].onload
         end
+        js_eval "if (window.onload) { window.onload(); }"
       end
-
-      body = @window.document.getElementsByTagName('body')
-
-      # call onload events
-      unless body.nil? || body.empty? || body[0]['onload'].nil?
-        @cxt.eval @window.document.getElementsByTagName('body')[0].onload
-      end
-      @cxt.eval "if (window.onload) { window.onload(); }"
 
       @html = @window.document.to_html
       @doc = @window.document
     end
 
-    def js_eval(js)
-      @cxt.eval js
+    def cxt
+      @cxt ||= V8::Context.new( :with => @window )
+    end
+
+    def js_eval(js,src=nil)
+      begin
+        cxt.eval( js )
+      rescue Exception => e
+        puts src unless src.nil?
+        js.split( "\n" ).each_with_index {
+            |line, i|
+            puts "#{i+1} #{line}"
+        }
+        raise e
+      end
       @html = @window.document.to_html
-      @doc = @window.document
+    end
+
+    def to_html
+      @html
     end
 
     def select(query)
