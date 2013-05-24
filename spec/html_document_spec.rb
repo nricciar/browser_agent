@@ -29,6 +29,15 @@ describe HtmlDocument do
     @parser.form.first.children.size.should == 9
   end
 
+  it 'select boxes' do
+    form = @parser.form("test2")
+    form.select_box.value.should == "1"
+    form.select_box.value = 4
+    form.select_box.value.should == "4"
+    form.select_box.value = 19
+    form.select_box.value.should == "1"
+  end
+
   it 'first form should have 10 elements with javascript enabled' do
     @parser.get("file://" + File.expand_path(File.join(File.dirname(__FILE__),'example_document.html')), :javascript => true)
     @parser.form.first.children.size.should == 10

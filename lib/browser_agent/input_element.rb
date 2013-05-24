@@ -21,7 +21,7 @@ module BrowserAgent
       if val
         @elem['disabled'] = "disabled"
       else
-        @elem['disabled'] = nil
+        @elem.remove_attribute('disabled')
       end
     end
 
@@ -41,7 +41,7 @@ module BrowserAgent
       if val
         @elem['checked'] = "checked"
       else
-        @elem['checked'] = nil
+        @elem.remove_attribute('checked')
       end
       if radio_button? && checked?
         # uncheck all other radio buttons of the same name 
@@ -56,8 +56,24 @@ module BrowserAgent
       case @elem.nodeName
       when "textarea"
         @value = @elem.content
+      when "select"
+        opt = @elem.xpath(".//option")
+        opt_val = nil
+        opt.reverse.each do |o|
+          opt_val = o['value'].nil? ? o.content : o['value']
+          return opt_val unless o['selected'].nil? || !["selected","true"].include?(o['selected'].to_s.downcase)
+        end
+        opt_val.nil? ? "" : opt_val
       else
         @value = @elem['value']
+      end
+    end
+
+    def valid_options
+      if @elem.nodeName == "select"
+        @elem.xpath('.//option').collect { |o| o['value'].nil? ? o.content : o['value'] }
+      elsif @elem.nodeName == "input" && @elem["type"] == "radio"
+        @form.xpath('.//input[@name="' + @elem["name"] + '"]').collect { |o| o['value'].nil? ? o.content : o['value'] }
       end
     end
 
@@ -65,6 +81,10 @@ module BrowserAgent
       case @elem.nodeName
       when "textarea"
         @elem.content = val
+      when "select"
+        @elem.xpath('.//option').each { |o| o.remove_attribute('selected') }
+        match = @elem.xpath('.//option[@value="' + val.to_s + '"]')
+        match.first["selected"] = "selected" unless match.nil? || match.empty?
       else
         @elem['value'] = val
       end
