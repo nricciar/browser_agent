@@ -57,7 +57,7 @@ module BrowserAgent
     end
 
     def to_html
-      @html
+      @window.document.to_html
     end
 
     def select(query)
