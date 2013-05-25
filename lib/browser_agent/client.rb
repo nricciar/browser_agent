@@ -75,8 +75,9 @@ module BrowserAgent
     end
 
     # used to include document assets like javascript files
-    def fetch_asset(uri)
-      fetch(uri, :method => :get, :asset => true)
+    def fetch_asset(uri, *options)
+      fetch(uri, { :method => :get, :asset => true }.merge(
+	options.nil? || options.first.nil? ? {} : options.first))
     end
 
     protected
