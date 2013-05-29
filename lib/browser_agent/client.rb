@@ -157,7 +157,7 @@ module BrowserAgent
           return response.body if options[:asset]
           @document = HtmlDocument.new(response.body,self)
         when Net::HTTPRedirection
-          fetch(response['location'], options.merge(:limit => (options[:limit] - 1), :referer => uri))
+          fetch(response['location'], options.merge(:method => :get, :limit => (options[:limit] - 1), :referer => uri))
         else
           response.error!
         end
