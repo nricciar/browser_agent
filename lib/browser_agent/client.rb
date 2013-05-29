@@ -69,9 +69,19 @@ module BrowserAgent
 	options.nil? || options.first.nil? ? {} : options.first))
     end
 
+    def delete(uri, *options)
+      fetch(uri, { :method => :delete }.merge(
+        options.nil? || options.first.nil? ? {} : options.first))
+    end
+
     def post(uri, *options)
       fetch(uri, { :method => :post }.merge(
 	options.nil? || options.first.nil? ? {} : options.first))
+    end
+
+    def put(uri, *options)
+      fetch(uri, { :method => :put }.merge(
+        options.nil? || options.first.nil? ? {} : options.first))
     end
 
     # used to include document assets like javascript files
@@ -117,7 +127,7 @@ module BrowserAgent
         else
           raise ArgumentError, "Invalid URL '#{url}'"
         end
-        if options[:parameters] && options[:method] == :get
+        if options[:parameters] && [:delete,:get].include?(options[:method])
           uri += (uri =~ /\?/ ? '&' : '?') + options[:parameters]
         end
 
@@ -134,6 +144,10 @@ module BrowserAgent
           case options[:method]
           when :post
             http.post(url.request_uri,options[:parameters],headers)
+          when :delete
+            http.delete(url.request_uri,headers)
+          when :put
+            http.put(url.request_uri,options[:parameters],headers)
           else
             http.get(url.request_uri,headers)
           end
