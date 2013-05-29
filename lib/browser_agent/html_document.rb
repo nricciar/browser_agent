@@ -16,7 +16,7 @@ module BrowserAgent
         @window.document.xpath( './/script' ).each do |script|
           if src = script['src']
             src = script['src'].to_s
-            code = @client.fetch_asset(src)
+            code = @client.fetch_asset(src, :javascript => true)
           else
             code = script.text
             src = :embeded
