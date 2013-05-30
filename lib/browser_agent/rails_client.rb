@@ -4,7 +4,7 @@ module BrowserAgent
 
     protected
     def fetch(uri, *args)
-      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => false }
+      default_options = { :method => :get, :limit => 10, :referer => nil, :debug => false, :parameters => "" }
       options = default_options.merge(args.first)
       if uri =~ /^\// && !@domain.nil?
         uri = File.join("#{@scheme}://",@domain,uri)
@@ -18,7 +18,7 @@ module BrowserAgent
       puts "#{options[:method].to_s.upcase} #{uri} -- #{headers.inspect}"
 
       route = Rails.application.routes.recognize_path(path, :method => options[:method])
-      env = Rack::MockRequest.env_for(uri, :params => route, 'HTTP_HOST' => @domain)
+      env = Rack::MockRequest.env_for(uri, :params => route.merge(Rack::Utils.parse_nested_query(options[:parameters])), 'HTTP_HOST' => @domain)
       controllerClass = "#{route[:controller]}_controller".camelize.constantize
       endpoint = controllerClass.action(route[:action])
       @status, headers, response = endpoint.call(env)

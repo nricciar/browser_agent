@@ -99,13 +99,24 @@ module BrowserAgent
       # protect from infinite loops
       raise ArgumentError, 'Redirect Limit Reached!' if options[:limit] <= 0
 
+      if uri !~ /^\// && uri !~ /^http|file/ && !@current_location.nil?
+        if @scheme == "file"
+          uri = "file://" + File.join(File.dirname(URI.parse(@current_location).path), uri)
+        elsif !@domain.nil? && options[:asset]
+          last_path = URI.parse(@current_location).path
+          uri = File.join("#{@scheme}://",@domain,File.dirname(last_path))
+        end
+      end
+
       if uri =~ /^file/
         # request a html page from the local filesystem
+        url = URI.parse(uri)
+        response = File.read(url.path)
+        return response if options[:asset]
         @current_location = uri
         @status = 200
-        url = URI.parse(@current_location)
         @scheme = url.scheme
-        @response = File.read(url.path)
+        @response = response
         @domain = 'localhost'
         @document = HtmlDocument.new(@response,self)
       else
@@ -118,10 +129,6 @@ module BrowserAgent
         # format scheme://domain/path/file
         elsif uri =~ /^([a-z]+):\/\//
           raise ArgumentError, "Invalid Scheme '#{$1}'" unless ["http","https"].include?($1)
-        # format file relative urls for internal links
-        elsif !@current_location.nil? && !@domain.nil? && options[:asset]
-          last_path = URI.parse(@current_location).path
-          uri = File.join("#{@scheme}://",@domain,File.dirname(last_path))
         # if you make it here we do not know what to do
         # with your uri
         else

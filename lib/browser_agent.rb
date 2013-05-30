@@ -14,38 +14,58 @@ require File.join(File.dirname(__FILE__),'browser_agent/client')
 # Monkey patch all elements to include a 'style' attribute
 #
 class Nokogiri::XML::Element
-    def style
-      ""
-    end
-    def style=(val)
-#puts "wtf wtf"
-#self.style = val
-    end
-
-    def attachEvent(event, func)
-    end
-
-    def initialize( *args )
-        super
-    end
+  attr_reader :style
+ 
+  class Style < OpenStruct
+  end
+ 
+  def initialize( *args )
+    super
+    @style = Style.new
+  end
 end
 
 module Taka::DOM::Document
-    attr_accessor :location
+  attr_accessor :location
 
-    def attachEvent(event, func)
+  def attachEvent(event, func)
+  end
+
+  def readyState()
+    proc do
+      "complete"
     end
+  end
 
-      def createDocumentFragment()
-proc do
-        Nokogiri::XML::DocumentFragment.new(self)
+  def parentNode()
+    proc do
+      nil
+    end
+  end
+
+  def createDocumentFragment()
+    proc do
+      Nokogiri::XML::DocumentFragment.new(self)
+    end
+  end
 end
-      end
+
+module Taka::DOM::HTML::Element
+  def innerHTML
+    inner_html
+  end
+
+  def innerHTML=(html)
+    self.native_content = html
+  end
 end
 
 module BrowserAgent
 
   class Window
+
+    include Taka::EventTarget if defined?(Taka::EventTarget)
+    include Taka::Window::Timers if defined?(Taka::Window::Timers)
 
     attr_reader :document
     attr_reader :navigator
