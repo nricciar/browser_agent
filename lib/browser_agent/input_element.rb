@@ -65,7 +65,14 @@ module BrowserAgent
         end
         opt_val.nil? ? "" : opt_val
       else
-        @value = @elem['value']
+        if @elem['type'] == 'radio'
+          @form.xpath('.//input[@name="' + @elem["name"] + '"]').each do |el|
+            @value = el['value'] if el['checked']
+          end
+          @value.nil? ? @elem['value'] : @value
+        else
+          @value = @elem['value']
+        end
       end
     end
 
@@ -96,6 +103,8 @@ module BrowserAgent
     def query_string
       if @elem.nodeName == "input"
         return nil if ["submit","button"].include?(@elem['type']) && @button_clicked.nil?
+        escape("#{@elem['name']}")+"="+escape("#{value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
+      elsif @elem.nodeName == "select"
         escape("#{@elem['name']}")+"="+escape("#{value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
       else
         nil
