@@ -13,6 +13,10 @@ module BrowserAgent
       @name.to_s.gsub(/\[/,'_').gsub(/\]/,'')
     end
 
+    def elem
+      @elem
+    end
+
     def disabled?
       @elem['disabled'].nil? || !["disabled","true"].include?(@elem['disabled'].to_s.downcase) ? false : true
     end
@@ -89,11 +93,27 @@ module BrowserAgent
       when "textarea"
         @elem.content = val
       when "select"
-        @elem.xpath('.//option').each { |o| o.remove_attribute('selected') }
-        match = @elem.xpath('.//option[@value="' + val.to_s + '"]')
-        match.first["selected"] = "selected" unless match.nil? || match.empty?
+        @elem.xpath('.//option').each do |o| 
+          if o['value'] == val.to_s
+            o['selected'] = 'selected'
+          else
+            o.remove_attribute('selected')
+          end
+        end
       else
-        @elem['value'] = val
+        if @elem['type'] == 'radio'
+          @form.children.each do |child|
+            if child.name == self.name
+              if child.elem['value'] == val.to_s
+                child.elem['checked'] = "checked"
+              else
+                child.elem.remove_attribute('checked')
+              end
+            end
+          end
+        else
+          @elem['value'] = val
+        end
       end
       if @elem['onchange']
         @form.document.js_eval @elem['onchange']
@@ -102,7 +122,7 @@ module BrowserAgent
 
     def query_string
       if @elem.nodeName == "input"
-        return nil if ["submit","button"].include?(@elem['type']) && @button_clicked.nil?
+        return nil if ["submit","button"].include?(@elem['type']) && @elem['_clicked'].nil?
         escape("#{@elem['name']}")+"="+escape("#{value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
       elsif @elem.nodeName == "select"
         escape("#{@elem['name']}")+"="+escape("#{value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
@@ -117,9 +137,9 @@ module BrowserAgent
       @form.document.js_eval @elem['onmouseup'] if @elem['onmouseup']
 
       if (@elem.nodeName == "input" && ["submit","image"].include?(@elem['type'])) || @elem.nodeName == "button"
-        @button_clicked = true
+        @elem['_clicked'] = 'clicked'
         @form.submit()
-        @button_clicked = nil
+        @elem.remove_attribute('_clicked')
       end
     end
 

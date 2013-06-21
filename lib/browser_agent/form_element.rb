@@ -39,6 +39,10 @@ module BrowserAgent
       (@data['method'] || 'get').to_s.downcase.to_sym
     end
 
+    def query_string
+      children.map(&:query_string).compact.join("&")
+    end
+
     def submit(name=nil)
       document.js_eval @data['onsubmit'] if @data['onsubmit']
 
