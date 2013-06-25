@@ -121,7 +121,7 @@ module BrowserAgent
     end
 
     def query_string
-      if @elem.nodeName == "input"
+      if ["input","textarea"].include?(@elem.nodeName)
         return nil if ["submit","button"].include?(@elem['type']) && @elem['_clicked'].nil?
         escape("#{@elem['name']}")+"="+escape("#{value}") unless disabled? || ((checkbox? || radio_button?) && !checked?)
       elsif @elem.nodeName == "select"
@@ -132,8 +132,8 @@ module BrowserAgent
     end
 
     def click
-      @form.document.js_eval @elem['onclick'] if @elem['onclick']
       @form.document.js_eval @elem['onmousedown'] if @elem['onmousedown']
+      @form.document.js_eval @elem['onclick'] if @elem['onclick']
       @form.document.js_eval @elem['onmouseup'] if @elem['onmouseup']
 
       if (@elem.nodeName == "input" && ["submit","image"].include?(@elem['type'])) || @elem.nodeName == "button"
