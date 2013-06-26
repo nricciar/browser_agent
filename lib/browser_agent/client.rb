@@ -65,22 +65,22 @@ module BrowserAgent
     end
 
     def get(uri, *options)
-      fetch(uri, { :method => :get }.merge(
+      fetch(uri, { :method => :get, :parameters => nil }.merge(
 	options.nil? || options.first.nil? ? {} : options.first))
     end
 
     def delete(uri, *options)
-      fetch(uri, { :method => :delete }.merge(
+      fetch(uri, { :method => :delete, :parameters => nil }.merge(
         options.nil? || options.first.nil? ? {} : options.first))
     end
 
     def post(uri, *options)
-      fetch(uri, { :method => :post }.merge(
+      fetch(uri, { :method => :post, :parameters => nil }.merge(
 	options.nil? || options.first.nil? ? {} : options.first))
     end
 
     def put(uri, *options)
-      fetch(uri, { :method => :put }.merge(
+      fetch(uri, { :method => :put, :parameters => nil }.merge(
         options.nil? || options.first.nil? ? {} : options.first))
     end
 
@@ -144,6 +144,7 @@ module BrowserAgent
         headers = {}
         headers['User-Agent'] = USER_AGENT
         headers['Cookie'] = @cookie_jar.get_cookie_header(uri)
+        headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 
         # make the server request
         response = Net::HTTP.start(url.host, url.port, :use_ssl => url.scheme == 'https', :verify_mode => OpenSSL::SSL::VERIFY_NONE) do |http|
@@ -178,7 +179,7 @@ module BrowserAgent
           return response.body if options[:asset]
           @document = HtmlDocument.new(response.body,self)
         when Net::HTTPRedirection
-          fetch(response['location'], options.merge(:method => :get, :limit => (options[:limit] - 1), :referer => uri))
+          fetch(response['location'], options.merge(:method => :get, :limit => (options[:limit] - 1), :referer => uri, :parameters => nil))
         else
           response.error!
         end
